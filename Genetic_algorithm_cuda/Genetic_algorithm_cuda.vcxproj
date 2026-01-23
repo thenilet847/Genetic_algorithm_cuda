@@ -55,7 +55,7 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <GenerateRelocatableDeviceCode>false</GenerateRelocatableDeviceCode>
+      <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -81,10 +81,12 @@
     <CudaCompile Include="gene.cu" />
     <CudaCompile Include="global_defines.h" />
     <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="phases.cu" />
     <CudaCompile Include="utils.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gene.h" />
+    <ClInclude Include="phases.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

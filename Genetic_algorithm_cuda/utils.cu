@@ -3,6 +3,8 @@
 #include <device_launch_parameters.h>
 #include "global_defines.h"
 #include <stdio.h>
+#include <curand_kernel.h>
+#include <curand.h>
 
 /// <summary>
 /// Initialize random states for each thread
@@ -31,16 +33,16 @@ __host__ __device__ int get_arr_length_by_genes(int genes_size) {
 /// </summary>
 /// <param name="genes_size">Genes count</param>
 /// <returns>Return reference of precalculated terms array</returns>
-__host__ int* init_precalculated_terms(int n_genes) {
-	int* prec_h; 
-	prec_h = (int*)malloc(sizeof(int) * n_genes);
+__host__ unsigned int* init_precalculated_terms(int n_genes) {
+	unsigned int* prec_h; 
+	prec_h = (unsigned int*)malloc(sizeof(unsigned int) * n_genes);
 	if (prec_h == NULL) return NULL; 
 	for (int i = 1; i <= n_genes; i++) {
 		prec_h[i-1] = i * i; 
 	}
-	int* prec_d; 
+	unsigned int* prec_d; 
 	cudaError_t err = cudaMalloc((void**)&prec_d, sizeof(int) * n_genes);
-	if (err == cudaSuccess) cudaMemcpy((void*)prec_d, (void*)prec_h, sizeof(int) * n_genes, cudaMemcpyHostToDevice);
+	if (err == cudaSuccess) cudaMemcpy((void*)prec_d, (void*)prec_h, sizeof(unsigned int) * n_genes, cudaMemcpyHostToDevice);
 	free(prec_h); 
 	if (err != cudaSuccess) return NULL;
 	return prec_d;
@@ -56,7 +58,7 @@ __host__ int* init_precalculated_terms(int n_genes) {
 /// <param name="n_genes">Number of genes</param>
 /// <param name="population">Number of population</param>
 /// <returns>True if success, false otherwise</returns>
-__host__ bool malloc_data(curandState** rand_states, char** chromosmas_a, char** chromosmas_b, int** precalc_results, int** results, int n_genes, int population) {
+__host__ bool malloc_data(curandState** rand_states, char** chromosmas_a, char** chromosmas_b, unsigned int** precalc_results, unsigned int** results, int n_genes, int population) {
 	int chromo_size = get_arr_length_by_genes(n_genes);
 	cudaError_t err;
 	err = cudaMalloc((void**)rand_states, sizeof(curandState) * population);
@@ -65,7 +67,9 @@ __host__ bool malloc_data(curandState** rand_states, char** chromosmas_a, char**
 	if (err != cudaSuccess) return false;
 	err = cudaMalloc((void**)chromosmas_b, sizeof(char) * chromo_size * population);
 	if (err != cudaSuccess) return false;
-	err = cudaMalloc((void**)precalc_results, sizeof(int) * population);
+	err = cudaMalloc((void**)precalc_results, sizeof(unsigned int) * population);
+	if (err != cudaSuccess) return false;
+	err = cudaMalloc((void**)results, sizeof(unsigned int) * population);
 	if (err != cudaSuccess) return false;
 	*precalc_results = init_precalculated_terms(n_genes);
 	return (*precalc_results != NULL);
@@ -78,7 +82,7 @@ __host__ bool malloc_data(curandState** rand_states, char** chromosmas_a, char**
 /// <param name="chromosmas_b">pointer to chromosomas_b</param>
 /// <param name="precalc_results">pointer to precalc_results</param>
 /// <param name="results">pointer to results</param>
-__host__ void free_data(curandState* rand_states, char* chromosmas_a, char* chromosmas_b, int* precalc_results, int* results) {
+__host__ void free_data(curandState* rand_states, char* chromosmas_a, char* chromosmas_b, unsigned int* precalc_results, unsigned int* results) {
 	if (rand_states != NULL) {
 		cudaFree(rand_states);
 	}
@@ -116,14 +120,17 @@ __host__ void print_genes(char* chromosoma, int n_genes, int chromosoma_size) {
 	printf("%s\n", resp);
 	free(resp);
 }
-__host__ void print_all_genes(char* chromosomas, int n_genes, int population, int chromosoma_size) {
+__host__ void print_all_genes(char* chromosomas, unsigned int* results, int n_genes, int population, int chromosoma_size) {
 	char* chromosoma = (char*)malloc(chromosoma_size); 
+	unsigned int result; 
 	if (chromosoma == NULL) {
 		fprintf(stderr, "Can not allocate memory at RAM. \n"); 
 		return; 
 	}
 	for (int i = 0; i < population; i++) {
 		cudaMemcpy((void*)chromosoma, &chromosomas[i * chromosoma_size], sizeof(char) * chromosoma_size, cudaMemcpyDeviceToHost); 
+		cudaMemcpy((void*)&result, (void*)&results[i], sizeof(int), cudaMemcpyDeviceToHost);
+		printf("Chromosoma %d\t(value=%u): \t", i, result);
 		print_genes(chromosoma, n_genes, chromosoma_size); 
 	}
 	free(chromosoma); 

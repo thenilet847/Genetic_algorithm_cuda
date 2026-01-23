@@ -1,6 +1,7 @@
 #include "gene.h"
 #include <device_launch_parameters.h>
 #include <stdio.h>
+#include <curand_kernel.h>
 /// <summary>
 /// Returns boolean value of the gene at position n_gene in the chromosoma
 /// </summary>
@@ -39,5 +40,38 @@ __device__ __host__ void set_gene(char* chromosoma, int n_gene, bool value) {
 __device__ void set_random_genes(curandState* state, char* chromosoma, int size_cromosoma) {
 	for (int i = 0; i < size_cromosoma; i++) {
 		chromosoma[i] = (char)(curand(state));
+	}
+}
+
+__device__ unsigned int get_chromosoma_result(char* chromosoma, unsigned int* precalc_results, int chromosoma_length, int n_genes) {
+	unsigned int result = 0; 
+	char act; 
+	int i, j; 
+	for (i = 0; i < chromosoma_length; i++) {
+		act = chromosoma[i];
+		for (j = 0; j < 8; j++) {
+			if (((i << 3) + j) >= n_genes) {
+				break; 
+			}
+			if (act & 1) {
+				result += precalc_results[(i<<3) + j];
+			}
+			act >>= 1; 
+		}
+	}
+	return result; 
+}
+__device__ void mutate_chromosoma(curandState* state, char* chromosoma, int chromosoma_size, int mutation_rate) {
+	int i, j; 
+	char act; 
+	for (i = 0; i < chromosoma_size; i++) {
+		act = 0;
+		for (j = 0; j < 8; j++) {
+			act <<= 1; 
+			if ((curand(state)%100) < mutation_rate) {
+				act |= 1; 
+			}
+		}
+		chromosoma[i] ^= act; 
 	}
 }
