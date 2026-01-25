@@ -58,21 +58,23 @@ __host__ unsigned int* init_precalculated_terms(int n_genes) {
 /// <param name="n_genes">Number of genes</param>
 /// <param name="population">Number of population</param>
 /// <returns>True if success, false otherwise</returns>
-__host__ bool malloc_data(curandState** rand_states, char** chromosmas_a, char** chromosmas_b, unsigned int** precalc_results, unsigned int** results, int n_genes, int population) {
+__host__ bool malloc_data(curandState** rand_states, char** chromosmas_a, char** chromosoma_h, unsigned int** selected_index, unsigned int** selected_index_h, unsigned int** precalc_results, unsigned int** results, int n_genes, int population) {
 	int chromo_size = get_arr_length_by_genes(n_genes);
 	cudaError_t err;
 	err = cudaMalloc((void**)rand_states, sizeof(curandState) * population);
 	if (err != cudaSuccess) return false;
 	err = cudaMalloc((void**)chromosmas_a, sizeof(char) * chromo_size * population);
 	if (err != cudaSuccess) return false;
-	err = cudaMalloc((void**)chromosmas_b, sizeof(char) * chromo_size * population);
-	if (err != cudaSuccess) return false;
-	err = cudaMalloc((void**)precalc_results, sizeof(unsigned int) * population);
+	err = cudaMalloc((void**)selected_index, sizeof(unsigned int) * population);
 	if (err != cudaSuccess) return false;
 	err = cudaMalloc((void**)results, sizeof(unsigned int) * population);
 	if (err != cudaSuccess) return false;
 	*precalc_results = init_precalculated_terms(n_genes);
-	return (*precalc_results != NULL);
+	if (*precalc_results == NULL) return false;
+	err = cudaMallocHost(chromosoma_h, sizeof(char) * chromo_size * population); 
+	if (err != cudaSuccess) return false; 
+	err = cudaMallocHost((void**)selected_index_h, sizeof(unsigned int) * population);
+	return (err == cudaSuccess);
 }
 /// <summary>
 /// Free memory from device
@@ -82,21 +84,27 @@ __host__ bool malloc_data(curandState** rand_states, char** chromosmas_a, char**
 /// <param name="chromosmas_b">pointer to chromosomas_b</param>
 /// <param name="precalc_results">pointer to precalc_results</param>
 /// <param name="results">pointer to results</param>
-__host__ void free_data(curandState* rand_states, char* chromosmas_a, char* chromosmas_b, unsigned int* precalc_results, unsigned int* results) {
+__host__ void free_data(curandState* rand_states, char* chromosmas_a, char* chromosoma_h, unsigned int* selected_index, unsigned int* selected_index_host, unsigned int* precalc_results, unsigned int* results) {
 	if (rand_states != NULL) {
 		cudaFree(rand_states);
 	}
 	if (chromosmas_a != NULL) {
 		cudaFree(chromosmas_a);
 	}
-	if (chromosmas_b != NULL) {
-		cudaFree(chromosmas_b);
+	if (selected_index != NULL) {
+		cudaFree(selected_index);
 	}
 	if (precalc_results != NULL) {
 		cudaFree(precalc_results);
 	}
 	if (results != NULL) {
 		cudaFree(results);
+	}
+	if (chromosoma_h != NULL && chromosoma_h != (char*) - 1l) {
+		cudaFreeHost(chromosoma_h);
+	}
+	if (selected_index_host != NULL && selected_index_host != (unsigned int*) -1l) {
+		cudaFreeHost(selected_index_host);
 	}
 }
 __host__ void print_genes(char* chromosoma, int n_genes, int chromosoma_size) {
